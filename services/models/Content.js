@@ -24,6 +24,12 @@ const ClipJobSchema = new mongoose.Schema(
     },
     error: {
       type: String
+    },
+
+    message: {
+      type: String,
+      required: true,
+      default: 'Find the funniest parts of this video'
     }
   },
   { timestamps: true }

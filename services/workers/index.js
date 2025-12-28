@@ -7,7 +7,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 
 const OPUS_URL = 'https://clip.opus.pro/dashboard'
 const API_URL = 'http://localhost:3000/content/process'
-const CLIP_DESCRIPTION = 'Funniest Parts Please'
+const CLIP_DESCRIPTION = 'Funniest Parts Please' // sample description for test
 const EMAIL = process.env.email
 
 const COOKIES_PATH = path.join(__dirname, '..', 'cookies.json')
@@ -58,9 +58,9 @@ async function performLogin(page) {
     console.log('Performing login...')
     await page.waitForSelector('input[aria-label="email"]', { visible: true, timeout: 10000 })
     await page.type('input[aria-label="email"]', EMAIL, { delay: 50 })
-    
+
     await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
-    
+
     const loggedIn = await isLoggedIn(page)
     if (loggedIn) {
       await saveCookies(page)
@@ -79,34 +79,35 @@ async function performLogin(page) {
 async function ensureLoggedIn(page) {
   const cookiesLoaded = await loadCookies(page)
   await page.goto(OPUS_URL, { waitUntil: 'networkidle2' })
-  
+
   const loggedIn = await isLoggedIn(page)
-  
+
   if (loggedIn) {
     console.log('Already logged in using saved session!')
     return true
   }
-  
+
   if (!cookiesLoaded) {
     return await performLogin(page)
   }
-  
+
   console.log('Cookies expired, attempting login...')
   return await performLogin(page)
 }
 
-async function getNextVideoUrl() {
+
+async function getNextVideo() {
   try {
     const response = await fetch(API_URL)
     const data = await response.json()
-    
-    if (!data.videoUrl) {
+
+    if (!data.videoUrl || !data.message) {
       console.log('No video URL found in response')
       return null
     }
-    
+
     console.log('Video URL retrieved:', data.videoUrl)
-    return data.videoUrl
+    return data
   } catch (error) {
     console.error('Error fetching video URL:', error.message)
     return null
@@ -138,28 +139,37 @@ async function inputClipDescription(page, description) {
 
 async function processClip() {
   let browser = null
-  
+
   try {
     console.log('Launching browser...')
     browser = await puppeteer.launch(BROWSER_OPTIONS)
     const page = await browser.newPage()
-    
+
     const loggedIn = await ensureLoggedIn(page)
     if (!loggedIn) {
       throw new Error('Failed to login to Opus')
     }
-    
-    const videoUrl = await getNextVideoUrl()
-    if (!videoUrl) {
+
+    const video = await getNextVideo()
+    const url = video.videoUrl
+    const message = video.message
+
+    if (!url) {
       console.log('No video to process')
       return
     }
-    
-    await inputVideoUrl(page, videoUrl)
-    await inputClipDescription(page, CLIP_DESCRIPTION)
-    
+
+    if (!message) {
+      console.log('No video to process')
+      return
+
+    }
+
+    await inputVideoUrl(page, url)
+    await inputClipDescription(page, message)
+
     console.log('Clip processing initiated')
-    
+
   } catch (error) {
     console.error('Error processing clip:', error.message)
     throw error
@@ -171,7 +181,7 @@ if (require.main === module) {
   processClip()
     .then(() => {
       console.log('Process completed')
-      process.exit(0)
+      //process.exit(0) close browser after completion
     })
     .catch((error) => {
       console.error('Process failed:', error)
