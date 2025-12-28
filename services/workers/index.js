@@ -5,42 +5,39 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 const puppeteer = require('puppeteer-extra')
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 
-const stealthPlugin = StealthPlugin()
+const OPUS_URL = 'https://clip.opus.pro/dashboard'
+const API_URL = 'http://localhost:3000/content/process'
+const CLIP_DESCRIPTION = 'Funniest Parts Please'
+const EMAIL = process.env.email
 
-stealthPlugin.enabledEvasions.delete('iframe.contentWindow')
-stealthPlugin.enabledEvasions.delete('media.codecs')
+const COOKIES_PATH = path.join(__dirname, '..', 'cookies.json')
+const USER_DATA_DIR = path.join(__dirname, '..', 'browser-data')
 
-const email = process.env.email
-
-puppeteer.use(stealthPlugin)
-
-
-const cookiesPath = path.join(__dirname, '..', 'cookies.json')
-const userDataDir = path.join(__dirname, '..', 'browser-data')
-
-
-async function saveCookies(page) {
-  const cookies = await page.cookies()
-  await fs.writeFile(cookiesPath, JSON.stringify(cookies, null, 2))
-  console.log('Cookies saved!')
+const BROWSER_OPTIONS = {
+  headless: false,
+  defaultViewport: null,
+  args: ['--disable-blink-features=AutomationControlled'],
+  userDataDir: USER_DATA_DIR,
 }
 
-async function getUrl() {
+const stealthPlugin = StealthPlugin()
+stealthPlugin.enabledEvasions.delete('iframe.contentWindow')
+stealthPlugin.enabledEvasions.delete('media.codecs')
+puppeteer.use(stealthPlugin)
+
+async function saveCookies(page) {
   try {
-    const res = await fetch('http://localhost:3000/content/process')
-    const json = await res.json()
-    console.log(json)
-    return json.videoUrl
-   
-  } catch (err) {
-    console.error(err)
+    const cookies = await page.cookies()
+    await fs.writeFile(COOKIES_PATH, JSON.stringify(cookies, null, 2))
+    console.log('Cookies saved!')
+  } catch (error) {
+    console.error('Error saving cookies:', error.message)
   }
 }
 
-// Helper function to load cookies
 async function loadCookies(page) {
   try {
-    const cookiesString = await fs.readFile(cookiesPath, 'utf8')
+    const cookiesString = await fs.readFile(COOKIES_PATH, 'utf8')
     const cookies = JSON.parse(cookiesString)
     await page.setCookie(...cookies)
     console.log('Cookies loaded!')
@@ -51,52 +48,133 @@ async function loadCookies(page) {
   }
 }
 
-async function getBunnies(){
-    const browser = await puppeteer.launch({
-    headless: false,
-    defaultViewport: null,
-    args: ['--disable-blink-features=AutomationControlled'],
-    userDataDir: userDataDir,
-  })
-
-    const url = 'https://clip.opus.pro/dashboard'
-    const page = await browser.newPage();
-    
-   
-    const cookiesLoaded = await loadCookies(page)
-    
-    await page.goto(url, { waitUntil: 'networkidle2' })
-    
-    
-    const isLoggedIn = await page.$('input[aria-label="email"]') === null
-    
-    if (!isLoggedIn && !cookiesLoaded) {
-      console.log('Not logged in, performing login...')
-      await page.waitForSelector('input[aria-label="email"]', { visible: true });
-      await page.type('input[aria-label="email"]', email, { delay: 50 });
-      
-      // wait for loogin
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
-      
-     
-      await saveCookies(page)
-    } else if (isLoggedIn) {
-      console.log('Already logged in using saved cookies/session!')
-    }
-
-    const video = await getUrl()
-    console.log(video)
-   
-
-    await page.waitForSelector('input[aria-label="Input url"]', { visible: true });
-    await page.type('input[aria-label="Input url"]', video, { delay: 0 });
-   
-
-
-
-
-   
-
+async function isLoggedIn(page) {
+  const emailInput = await page.$('input[aria-label="email"]')
+  return emailInput === null
 }
 
-getBunnies()
+async function performLogin(page) {
+  try {
+    console.log('Performing login...')
+    await page.waitForSelector('input[aria-label="email"]', { visible: true, timeout: 10000 })
+    await page.type('input[aria-label="email"]', EMAIL, { delay: 50 })
+    
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
+    
+    const loggedIn = await isLoggedIn(page)
+    if (loggedIn) {
+      await saveCookies(page)
+      console.log('Login successful!')
+      return true
+    } else {
+      console.log('Login may have failed')
+      return false
+    }
+  } catch (error) {
+    console.error('Login error:', error.message)
+    return false
+  }
+}
+
+async function ensureLoggedIn(page) {
+  const cookiesLoaded = await loadCookies(page)
+  await page.goto(OPUS_URL, { waitUntil: 'networkidle2' })
+  
+  const loggedIn = await isLoggedIn(page)
+  
+  if (loggedIn) {
+    console.log('Already logged in using saved session!')
+    return true
+  }
+  
+  if (!cookiesLoaded) {
+    return await performLogin(page)
+  }
+  
+  console.log('Cookies expired, attempting login...')
+  return await performLogin(page)
+}
+
+async function getNextVideoUrl() {
+  try {
+    const response = await fetch(API_URL)
+    const data = await response.json()
+    
+    if (!data.videoUrl) {
+      console.log('No video URL found in response')
+      return null
+    }
+    
+    console.log('Video URL retrieved:', data.videoUrl)
+    return data.videoUrl
+  } catch (error) {
+    console.error('Error fetching video URL:', error.message)
+    return null
+  }
+}
+
+async function inputVideoUrl(page, videoUrl) {
+  try {
+    await page.waitForSelector('input[aria-label="Input url"]', { visible: true, timeout: 10000 })
+    await page.type('input[aria-label="Input url"]', videoUrl, { delay: 0 })
+    console.log('Video URL entered')
+  } catch (error) {
+    console.error('Error inputting video URL:', error.message)
+    throw error
+  }
+}
+
+async function inputClipDescription(page, description) {
+  try {
+    const selector = 'input[aria-label="Tell us what you would like to include in the final clips"]'
+    await page.waitForSelector(selector, { visible: true, timeout: 10000 })
+    await page.type(selector, description, { delay: 50 })
+    console.log('Clip description entered')
+  } catch (error) {
+    console.error('Error inputting clip description:', error.message)
+    throw error
+  }
+}
+
+async function processClip() {
+  let browser = null
+  
+  try {
+    console.log('Launching browser...')
+    browser = await puppeteer.launch(BROWSER_OPTIONS)
+    const page = await browser.newPage()
+    
+    const loggedIn = await ensureLoggedIn(page)
+    if (!loggedIn) {
+      throw new Error('Failed to login to Opus')
+    }
+    
+    const videoUrl = await getNextVideoUrl()
+    if (!videoUrl) {
+      console.log('No video to process')
+      return
+    }
+    
+    await inputVideoUrl(page, videoUrl)
+    await inputClipDescription(page, CLIP_DESCRIPTION)
+    
+    console.log('Clip processing initiated')
+    
+  } catch (error) {
+    console.error('Error processing clip:', error.message)
+    throw error
+  } finally {
+  }
+}
+
+if (require.main === module) {
+  processClip()
+    .then(() => {
+      console.log('Process completed')
+      process.exit(0)
+    })
+    .catch((error) => {
+      console.error('Process failed:', error)
+      process.exit(1)
+    })
+}

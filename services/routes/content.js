@@ -64,5 +64,22 @@ router.get('/process', async(req, res) => {
 
 })
 
+router.delete('/delete/:id', async (req, res) => {
+    try{
+        const toDelete = await Content.findByIdAndDelete(req.params.id)
+
+        if (toDelete){
+            console.log(`successfully deleted content with id ${req.params.id}`)
+        }
+
+        res.status(200).json(toDelete)
+
+    }
+    catch(err){
+        res.status(500).json({err: err.message})
+
+    }
+
+})
 
 module.exports = router
