@@ -1,6 +1,5 @@
 const express = require('express')
 const router = express.Router()
-const content = require('../models/Content')
 const Content = require('../models/Content')
 
 

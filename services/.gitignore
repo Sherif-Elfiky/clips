@@ -1,0 +1,21 @@
+# Environment variables
+.env
+
+# Browser data and cookies (contains sensitive session data)
+browser-data/
+cookies.json
+
+
+node_modules/
+
+
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+clips/output/
+clips/temp/
+
