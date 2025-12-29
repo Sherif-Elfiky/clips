@@ -8,11 +8,11 @@ const ClipJobSchema = new mongoose.Schema(
     },
     startTime: {
       type: Number,
-      required: true
+      required: false
     },
     endTime: {
       type: Number,
-      required: true
+      required: false
     },
     status: {
       type: String,

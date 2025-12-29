@@ -7,6 +7,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 
 const OPUS_URL = 'https://clip.opus.pro/dashboard'
 const API_URL = 'http://localhost:3000/content/process'
+const COUNT_URL = 'http://localhost:3000/content/count-queued'
 
 const EMAIL = process.env.email
 
@@ -90,6 +91,20 @@ async function getClips(page) {
 
 }
 
+async function getCount() {
+  try {
+    const response = await fetch('http://localhost:3000/content/count-queued')
+    const count = parseInt(await response.text())
+    return count
+  } catch (error) {
+    console.error('Error getting count:', error)
+    return 0
+
+  }
+
+
+}
+
 async function setDone(videoId) {
   try {
     const res = await fetch(`http://localhost:3000/content/completed/${videoId}`, {
@@ -166,7 +181,7 @@ async function inputClipDescription(page, description) {
   try {
     const selector = 'input[aria-label="Tell us what you would like to include in the final clips"]'
     await page.waitForSelector(selector, { visible: true, timeout: 10000 })
-    await page.type(selector, description, { delay: 75 })
+    await page.type(selector, description, { delay: 50 })
     console.log('Clip description entered')
   } catch (error) {
     console.error('Error inputting clip description:', error.message)
@@ -174,34 +189,16 @@ async function inputClipDescription(page, description) {
   }
 }
 
-async function processClip() {
-  let browser = null
-
+async function processClip(page) {
   try {
-    console.log('Launching browser...')
-    browser = await puppeteer.launch(BROWSER_OPTIONS)
-    const page = await browser.newPage()
-
-    const loggedIn = await ensureLoggedIn(page)
-    if (!loggedIn) {
-      throw new Error('Failed to login to Opus')
-    }
-
+    await page.goto(OPUS_URL, { waitUntil: 'networkidle2' })
     const video = await getNextVideo()
-    const url = video.videoUrl
-    const message = video.message
-    const videoId = video._id
-
-    if (!url) {
+    if (!video || !video.videoUrl || !video.message) {
       console.log('No video to process')
-      return
+      return false
     }
 
-    if (!message) {
-      console.log('No message to send')
-      return
-
-    }
+    const { videoUrl: url, message, _id: videoId } = video
 
     await inputVideoUrl(page, url)
     await inputClipDescription(page, message)
@@ -214,24 +211,63 @@ async function processClip() {
       await setDone(videoId)
     }
 
-
-
-
+    return true
   } catch (error) {
     console.error('Error processing clip:', error.message)
     throw error
+  }
+}
+
+async function processAllVideos() {
+  let browser = null
+  let page = null
+
+  try {
+    console.log('Launching browser...')
+    browser = await puppeteer.launch(BROWSER_OPTIONS)
+    page = await browser.newPage()
+
+    const loggedIn = await ensureLoggedIn(page)
+    if (!loggedIn) {
+      throw new Error('Failed to login to Opus')
+    }
+
+    while (true) {
+      try {
+        const count = await getCount()
+
+        if (count === 0) {
+          console.log('No queued videos, waiting 2 seconds then exiting...')
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          break
+        }
+
+        await processClip(page)
+        await new Promise(resolve => setTimeout(resolve, 5000))
+      } catch (error) {
+        console.error('Error in processing loop:', error)
+        await new Promise(resolve => setTimeout(resolve, 5000))
+      }
+    }
+    console.log('Process completed - no more queued videos')
+  } catch (error) {
+    console.error('Fatal error:', error)
   } finally {
+    if (browser) {
+      console.log('Check')
+
+    }
   }
 }
 
 if (require.main === module) {
-  processClip()
+  processAllVideos()
     .then(() => {
       console.log('Process completed')
       //process.exit(0) close browser after completion
     })
     .catch((error) => {
       console.error('Process failed:', error)
-      process.exit(1)
+      // process.exit(1)
     })
 }

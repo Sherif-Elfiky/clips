@@ -8,7 +8,6 @@ router.get('/', async (req, res) => {
     try {
         const allContent = await Content.find()
         res.status(200).json(allContent)
-
     }
     catch (err) {
         res.status(500).json({ err: err.message })
@@ -16,6 +15,19 @@ router.get('/', async (req, res) => {
 
 })
 
+router.get('/done', async (req, res) => {
+    try{
+        const allDone = await Content.find({status: "done"})
+        res.status(200).json(allDone)
+
+
+    }
+    catch(err){
+        res.status(500).json({err: err.message})
+
+    }
+
+})
 // add new content
 router.post('/new', async (req, res) => {
     try {
@@ -25,9 +37,18 @@ router.post('/new', async (req, res) => {
     }
     catch (err) {
         res.status(500).json({ err: err.message })
-
     }
+})
 
+// count queued videos
+router.get('/count-queued', async (req, res) => {
+    try {
+        const count = await Content.countDocuments({status: 'queued'})
+        res.status(200).json(count)
+    }
+    catch (err) {
+        res.status(500).json({err: err.message})
+    }
 })
 
 // show all content with status: queued
@@ -63,20 +84,20 @@ router.get('/process', async (req, res) => {
     }
 
 })
-
+// delete all content
 router.delete('/delete-all', async (req, res) => {
-    
+
     try {
         const deleteAll = await Content.deleteMany({})
         res.status(200).json(deleteAll)
     }
     catch (err) {
-        console.error('Delete-all error:', err)
         res.status(500).json({ err: err.message })
     }
 
 })
 
+// delete content with id 
 router.delete('/delete/:id', async (req, res) => {
     try {
         const toDelete = await Content.findByIdAndDelete(req.params.id)
