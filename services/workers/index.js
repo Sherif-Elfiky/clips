@@ -252,11 +252,6 @@ async function processAllVideos() {
     console.log('Process completed - no more queued videos')
   } catch (error) {
     console.error('Fatal error:', error)
-  } finally {
-    if (browser) {
-      console.log('Check')
-
-    }
   }
 }
 
