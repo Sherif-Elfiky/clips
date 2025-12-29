@@ -7,7 +7,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 
 const OPUS_URL = 'https://clip.opus.pro/dashboard'
 const API_URL = 'http://localhost:3000/content/process'
-const CLIP_DESCRIPTION = 'Funniest Parts Please' // sample description for test
+
 const EMAIL = process.env.email
 
 const COOKIES_PATH = path.join(__dirname, '..', 'cookies.json')
@@ -76,6 +76,43 @@ async function performLogin(page) {
   }
 }
 
+async function getClips(page) {
+  try {
+    await page.waitForSelector('button[aria-label="Get clips in 1 click"]', { visible: true, timeout: 10000 })
+    await page.click('button[aria-label="Get clips in 1 click"]')
+    console.log('successfully clicked get clicks')
+    return true
+  }
+  catch (err) {
+    console.log(`Problem clicking get clips: ${err}`)
+    return false
+  }
+
+}
+
+async function setDone(videoId) {
+  try {
+    const res = await fetch(`http://localhost:3000/content/completed/${videoId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Failed to mark done: ${res.status} ${text}`)
+    }
+
+    const data = await res.json()
+    console.log('Set video to done:', data.message)
+    return true
+  } catch (err) {
+    console.error('Error setting done:', err.message)
+    return false
+  }
+}
+
 async function ensureLoggedIn(page) {
   const cookiesLoaded = await loadCookies(page)
   await page.goto(OPUS_URL, { waitUntil: 'networkidle2' })
@@ -129,7 +166,7 @@ async function inputClipDescription(page, description) {
   try {
     const selector = 'input[aria-label="Tell us what you would like to include in the final clips"]'
     await page.waitForSelector(selector, { visible: true, timeout: 10000 })
-    await page.type(selector, description, { delay: 50 })
+    await page.type(selector, description, { delay: 75 })
     console.log('Clip description entered')
   } catch (error) {
     console.error('Error inputting clip description:', error.message)
@@ -153,6 +190,7 @@ async function processClip() {
     const video = await getNextVideo()
     const url = video.videoUrl
     const message = video.message
+    const videoId = video._id
 
     if (!url) {
       console.log('No video to process')
@@ -160,7 +198,7 @@ async function processClip() {
     }
 
     if (!message) {
-      console.log('No video to process')
+      console.log('No message to send')
       return
 
     }
@@ -169,6 +207,15 @@ async function processClip() {
     await inputClipDescription(page, message)
 
     console.log('Clip processing initiated')
+
+    const isSuccess = await getClips(page)
+
+    if (isSuccess) {
+      await setDone(videoId)
+    }
+
+
+
 
   } catch (error) {
     console.error('Error processing clip:', error.message)

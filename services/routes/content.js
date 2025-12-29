@@ -48,38 +48,69 @@ router.get('/queued', async (req, res) => {
 })
 
 // get one content with status queued
-router.get('/process', async(req, res) => {
-    try{
-        const toProcess = await Content.findOne({status: "queued"})
-        if (!toProcess){
+router.get('/process', async (req, res) => {
+    try {
+        const toProcess = await Content.findOne({ status: "queued" }).sort({ createdAt: -1 })
+        if (!toProcess) {
             return res.send('There is not a single video to queue')
         }
         res.status(200).json(toProcess)
 
     }
-    catch(err){
-        res.status(500).json({err: err.message})
+    catch (err) {
+        res.status(500).json({ err: err.message })
 
     }
 
 })
 
+router.delete('/delete-all', async (req, res) => {
+    
+    try {
+        const deleteAll = await Content.deleteMany({})
+        res.status(200).json(deleteAll)
+    }
+    catch (err) {
+        console.error('Delete-all error:', err)
+        res.status(500).json({ err: err.message })
+    }
+
+})
+
 router.delete('/delete/:id', async (req, res) => {
-    try{
+    try {
         const toDelete = await Content.findByIdAndDelete(req.params.id)
 
-        if (toDelete){
+        if (toDelete) {
             console.log(`successfully deleted content with id ${req.params.id}`)
         }
 
         res.status(200).json(toDelete)
 
     }
-    catch(err){
-        res.status(500).json({err: err.message})
+    catch (err) {
+        res.status(500).json({ err: err.message })
+
+    }
+})
+
+// changed queued to completed
+router.put('/completed/:id', async (req, res) => {
+    try {
+        const toChange = await Content.findById(req.params.id)
+        toChange.status = 'done'
+        await toChange.save()
+
+        res.status(200).json({ message: `Content with id: ${req.params.id} has been marked done` })
+
+    }
+    catch (err) {
+        res.status(500).json({ err: err.message })
 
     }
 
 })
+
+
 
 module.exports = router
