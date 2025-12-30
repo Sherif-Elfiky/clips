@@ -93,7 +93,7 @@ async function getClips(page) {
 
 async function getCount() {
   try {
-    const response = await fetch('http://localhost:3000/content/count-queued')
+    const response = await fetch(COUNT_URL)
     const count = parseInt(await response.text())
     return count
   } catch (error) {
