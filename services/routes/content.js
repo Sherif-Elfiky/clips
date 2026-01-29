@@ -97,6 +97,21 @@ router.delete('/delete-all', async (req, res) => {
 
 })
 
+router.delete('/delete-queued', async (req, res) => {
+    try {
+        const queued = await Content.deleteMany({ status: "queued" })
+        res.send('deleted queued videos')
+
+        
+
+    }
+    catch (err) {
+        res.status(500).json({ err: err.message })
+
+    }
+
+})
+
 // delete content with id 
 router.delete('/delete/:id', async (req, res) => {
     try {
