@@ -5,19 +5,19 @@
 browser-data/
 cookies.json
 
-
 node_modules/
-
 
 *.log
 npm-debug.log*
 
 # OS files
 .DS_Store
-Thumbs.db
 
-clips/output/
-clips/temp/
+
+
+
+README.txt
+
 
 
 

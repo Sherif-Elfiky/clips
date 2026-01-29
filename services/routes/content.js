@@ -16,14 +16,14 @@ router.get('/', async (req, res) => {
 })
 
 router.get('/done', async (req, res) => {
-    try{
-        const allDone = await Content.find({status: "done"})
+    try {
+        const allDone = await Content.find({ status: "done" })
         res.status(200).json(allDone)
 
 
     }
-    catch(err){
-        res.status(500).json({err: err.message})
+    catch (err) {
+        res.status(500).json({ err: err.message })
 
     }
 
@@ -43,11 +43,11 @@ router.post('/new', async (req, res) => {
 // count queued videos
 router.get('/count-queued', async (req, res) => {
     try {
-        const count = await Content.countDocuments({status: 'queued'})
+        const count = await Content.countDocuments({ status: 'queued' })
         res.status(200).json(count)
     }
     catch (err) {
-        res.status(500).json({err: err.message})
+        res.status(500).json({ err: err.message })
     }
 })
 

@@ -17,7 +17,6 @@ const USER_DATA_DIR = path.join(__dirname, '..', 'browser-data')
 const BROWSER_OPTIONS = {
   headless: false,
   defaultViewport: null,
-  args: ['--disable-blink-features=AutomationControlled'],
   userDataDir: USER_DATA_DIR,
 }
 
@@ -99,9 +98,7 @@ async function getCount() {
   } catch (error) {
     console.error('Error getting count:', error)
     return 0
-
   }
-
 
 }
 
@@ -129,7 +126,7 @@ async function setDone(videoId) {
 }
 
 async function ensureLoggedIn(page) {
-  const cookiesLoaded = await loadCookies(page)
+  //const cookiesLoaded = await loadCookies(page)
   await page.goto(OPUS_URL, { waitUntil: 'networkidle2' })
 
   const loggedIn = await isLoggedIn(page)
@@ -139,12 +136,8 @@ async function ensureLoggedIn(page) {
     return true
   }
 
-  if (!cookiesLoaded) {
-    return await performLogin(page)
-  }
-
-  console.log('Cookies expired, attempting login...')
   return await performLogin(page)
+
 }
 
 
@@ -169,7 +162,7 @@ async function getNextVideo() {
 async function inputVideoUrl(page, videoUrl) {
   try {
     await page.waitForSelector('input[aria-label="Input url"]', { visible: true, timeout: 10000 })
-    await page.type('input[aria-label="Input url"]', videoUrl, { delay: 0 })
+    await page.type('input[aria-label="Input url"]', videoUrl) // delay of 0ms to mimic copy paste
     console.log('Video URL entered')
   } catch (error) {
     console.error('Error inputting video URL:', error.message)
@@ -259,7 +252,7 @@ if (require.main === module) {
   processAllVideos()
     .then(() => {
       console.log('Process completed')
-      //process.exit(0) close browser after completion
+      //process.exit(0) close browser after completion 
     })
     .catch((error) => {
       console.error('Process failed:', error)

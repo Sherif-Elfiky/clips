@@ -16,7 +16,7 @@ const ClipJobSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['queued', 'processing', 'done', 'failed'],
+      enum: ['queued', 'done'],
       default: 'queued'
     },
     outputPath: {
