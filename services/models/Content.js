@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
 const ClipJobSchema = new mongoose.Schema(
   {
@@ -33,6 +33,6 @@ const ClipJobSchema = new mongoose.Schema(
     }
   },
   { timestamps: true }
-)
+);
 
-module.exports = mongoose.model('ClipJob', ClipJobSchema)
+module.exports = mongoose.model('ClipJob', ClipJobSchema);
