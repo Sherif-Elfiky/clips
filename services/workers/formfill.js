@@ -244,6 +244,10 @@ async function processAllVideos() {
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
 
+      break;
+
+     
+
       // break after first video for testing purposes
     }
     console.log('Process completed - no more queued videos');
