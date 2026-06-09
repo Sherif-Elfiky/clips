@@ -23,21 +23,39 @@ I built this project to remove that bottleneck. The goal was a single pipeline t
 
 ## How It Works
 
-1. **Discovery** — A worker uses the YouTube Data API to find candidate videos (e.g. stand-up) and enqueues them with a message describing what kind of clips to make.
-2. **Queue** — An Express API and MongoDB store jobs and their status (`queued` / `done`), so you can track progress and retry or inspect failures.
-3. **Processing** — A headless browser worker (Puppeteer) drives the clip-creation tool for each queued job and marks the job done when finished.
+1. **Discovery** — A worker (`workers/fetchurl.js`) uses the YouTube Data API to find candidate videos (e.g. stand-up) and enqueues them with a message describing what kind of clips to make.
+2. **Queue** — An Express API and MongoDB store jobs and their status (`queued` / `done` / `failed`), so you can track progress and retry or inspect failures.
+3. **Processing** — A worker (`workers/opusapi.js`) submits each queued job to the OpusClip API, which generates the clips, and marks the job done.
 
 ## Tech Stack
 
-- **Node.js, Express** — REST API and job queue endpoints  
-- **MongoDB, Mongoose** — Job storage and status  
-- **Puppeteer** — Browser automation for the clip tool  
-- **YouTube Data API** — Source video discovery  
+- **Node.js, Express** — REST API and job queue endpoints
+- **MongoDB, Mongoose** — Job storage and status
+- **OpusClip API** — AI clip generation
+- **YouTube Data API** — Source video discovery
+
+## API Endpoints
+
+| Method | Path                     | Description                          |
+| ------ | ------------------------ | ------------------------------------ |
+| GET    | `/health`                | Service and DB health check          |
+| GET    | `/content`               | List all jobs                        |
+| GET    | `/content/queued`        | List queued jobs                     |
+| GET    | `/content/done`          | List completed jobs                  |
+| GET    | `/content/count-queued`  | Count of queued jobs                 |
+| GET    | `/content/process`       | Next queued job to process           |
+| POST   | `/content/new`           | Add a job (`{ videoUrl, message }`)  |
+| PUT    | `/content/completed/:id` | Mark a job done                      |
+| DELETE | `/content/delete/:id`    | Delete a job by id                   |
+| DELETE | `/content/delete-queued` | Delete all queued jobs               |
+| DELETE | `/content/delete-all`    | Delete all jobs                      |
 
 ## Running Locally
 
 1. Install dependencies: `cd services && npm install`
-2. Set env vars (e.g. `MONGODB_URI`, `YT_API_KEY`, and any keys for the clip tool) in `services/.env` or your environment.
+2. Configure environment: copy `services/.env.example` to `services/.env` and fill in `YT_API_KEY` and `OPUS_API_KEY` (see the example file for all variables).
 3. Start MongoDB, then run the server and workers:
    - From repo root: `./run.sh`
-   - Or run the server and workers separately (see `services/` and `services/workers/`).
+   - Or individually: `npm start` (server), `npm run fetch` (discovery), `npm run clip` (OpusClip submission).
+
+> **Note:** The OpusClip API requires a Pro (Beta) or Business plan with available credits.

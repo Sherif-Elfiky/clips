@@ -1,5 +1,4 @@
 require('../config');
-const path = require('path');
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const POST_URL = `${API_BASE_URL}/content/new`;
@@ -45,14 +44,15 @@ async function fetchVideos() {
 
     const data = await response.json();
 
+    if (!Array.isArray(data.items)) {
+        throw new Error('Unexpected YouTube API response: missing "items"');
+    }
 
-    const videos = data.items.map(item => ({
+    return data.items.map(item => ({
         id: item.id.videoId,
         title: item.snippet.title,
         url: `${YOUTUBE_WATCH_BASE}${item.id.videoId}`
     }));
-
-    return videos;
 }
 
 async function postVideo(videoUrl) {
@@ -82,6 +82,11 @@ async function postVideo(videoUrl) {
 }
 
 async function fetchURLs() {
+    if (!API_KEY) {
+        console.error('YT_API_KEY is not set. Add it to services/.env before running.');
+        return;
+    }
+
     try {
         const videos = await fetchVideos();
         if (videos.length === 0) {

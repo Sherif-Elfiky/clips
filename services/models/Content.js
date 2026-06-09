@@ -6,26 +6,14 @@ const ClipJobSchema = new mongoose.Schema(
       type: String,
       required: true
     },
-    startTime: {
-      type: Number,
-      required: false
-    },
-    endTime: {
-      type: Number,
-      required: false
-    },
     status: {
       type: String,
-      enum: ['queued', 'done'],
+      enum: ['queued', 'done', 'failed'],
       default: 'queued'
     },
-    outputPath: {
+    opusProjectId: {
       type: String
     },
-    error: {
-      type: String
-    },
-
     message: {
       type: String,
       required: true,

@@ -1,24 +1,16 @@
 # Environment variables
 .env
 
-# Browser data and cookies (contains sensitive session data)
+# Browser session data from legacy/formfill.js (contains sensitive cookies)
 browser-data/
 cookies.json
 
+# Dependencies
 node_modules/
 
+# Logs
 *.log
 npm-debug.log*
 
 # OS files
 .DS_Store
-
-
-
-
-README.txt
-
-
-
-
-

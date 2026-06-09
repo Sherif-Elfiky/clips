@@ -2,151 +2,130 @@ const express = require('express');
 const router = express.Router();
 const Content = require('../models/Content');
 
-
-// show all content
+// list all content
 router.get('/', async (req, res) => {
     try {
         const allContent = await Content.find();
         res.status(200).json(allContent);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch (err) {
-        res.status(500).json({ err: err.message });
-    }
-
 });
 
+// list content with status: done
 router.get('/done', async (req, res) => {
     try {
-        const allDone = await Content.find({ status: "done" });
+        const allDone = await Content.find({ status: 'done' });
         res.status(200).json(allDone);
-
-
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch (err) {
-        res.status(500).json({ err: err.message });
-
-    }
-
 });
-// add new content
+
+// add new content (only whitelisted fields are accepted)
 router.post('/new', async (req, res) => {
     try {
-        newContent = req.body;
-        const createContent = await Content.create(newContent);
-        res.status(200).json(createContent);
-    }
-    catch (err) {
-        res.status(500).json({ err: err.message });
+        const { videoUrl, message } = req.body;
+
+        if (!videoUrl) {
+            return res.status(400).json({ error: 'videoUrl is required' });
+        }
+
+        const created = await Content.create({ videoUrl, message });
+        res.status(201).json(created);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// count queued videos
+// count of queued videos
 router.get('/count-queued', async (req, res) => {
     try {
         const count = await Content.countDocuments({ status: 'queued' });
         res.status(200).json(count);
-    }
-    catch (err) {
-        res.status(500).json({ err: err.message });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// show all content with status: queued
+// list content with status: queued
 router.get('/queued', async (req, res) => {
     try {
-        const queued = await Content.find({ status: "queued" });
-
-        if (queued.length === 0) {
-            return res.send('There is no queued content');
-        }
+        const queued = await Content.find({ status: 'queued' });
         res.status(200).json(queued);
-
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch (err) {
-        res.status(500).json({ err: err.message });
-    }
-
 });
 
-// get one content with status queued
+// fetch the next queued video to process
 router.get('/process', async (req, res) => {
     try {
-        const toProcess = await Content.findOne({ status: "queued" }).sort({ createdAt: -1 });
+        const toProcess = await Content.findOne({ status: 'queued' }).sort({ createdAt: -1 });
         if (!toProcess) {
-            return res.send('There is not a single video to queue');
+            return res.status(404).json({ error: 'No queued content to process' });
         }
         res.status(200).json(toProcess);
-
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch (err) {
-        res.status(500).json({ err: err.message });
-
-    }
-
 });
+
 // delete all content
 router.delete('/delete-all', async (req, res) => {
-
     try {
-        const deleteAll = await Content.deleteMany({});
-        res.status(200).json(deleteAll);
+        const result = await Content.deleteMany({});
+        res.status(200).json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch (err) {
-        res.status(500).json({ err: err.message });
-    }
-
 });
 
+// delete all queued content
 router.delete('/delete-queued', async (req, res) => {
     try {
-        const queued = await Content.deleteMany({ status: "queued" });
-        res.send('deleted queued videos');
-
-        
-
+        const result = await Content.deleteMany({ status: 'queued' });
+        res.status(200).json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch (err) {
-        res.status(500).json({ err: err.message });
-
-    }
-
 });
 
-// delete content with id 
+// delete content by id
 router.delete('/delete/:id', async (req, res) => {
     try {
-        const toDelete = await Content.findByIdAndDelete(req.params.id);
-
-        if (toDelete) {
-            console.log(`successfully deleted content with id ${req.params.id}`);
+        const deleted = await Content.findByIdAndDelete(req.params.id);
+        if (!deleted) {
+            return res.status(404).json({ error: `No content found with id ${req.params.id}` });
         }
-
-        res.status(200).json(toDelete);
-
-    }
-    catch (err) {
-        res.status(500).json({ err: err.message });
-
+        res.status(200).json(deleted);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// changed queued to completed
+// mark content as done
 router.put('/completed/:id', async (req, res) => {
     try {
-        const toChange = await Content.findById(req.params.id);
-        toChange.status = 'done';
-        await toChange.save();
+        const update = { status: 'done' };
+        if (req.body && req.body.opusProjectId) {
+            update.opusProjectId = req.body.opusProjectId;
+        }
 
-        res.status(200).json({ message: `Content with id: ${req.params.id} has been marked done` });
+        const updated = await Content.findByIdAndUpdate(
+            req.params.id,
+            update,
+            { new: true }
+        );
 
+        if (!updated) {
+            return res.status(404).json({ error: `No content found with id ${req.params.id}` });
+        }
+
+        res.status(200).json({ message: `Content with id ${req.params.id} has been marked done` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    catch (err) {
-        res.status(500).json({ err: err.message });
-
-    }
-
 });
-
-
 
 module.exports = router;
